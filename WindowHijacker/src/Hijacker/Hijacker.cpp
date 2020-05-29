@@ -1,7 +1,6 @@
 #include "Hijacker.hpp"
 #include <TlHelp32.h>
 #include <dwmapi.h>
-#pragma comment(lib, "dwmapi.lib")
 
 Hijacker::Hijacker::Hijacker()
 {
@@ -40,7 +39,6 @@ std::vector<unsigned int> Hijacker::Hijacker::GetProcessIDList(std::string_view 
 	{
 		if (!strcmp(pEntry.szExeFile, process_name.data()))
 		{
-			printf("%s ID -> %d \n", process_name.data(), pEntry.th32ProcessID);
 			ProcessList.push_back(pEntry.th32ProcessID);
 			CloseHandle(HandleToProcessID);
 		}
@@ -128,7 +126,7 @@ HWND Hijacker::Hijacker::Hijack(std::string_view target, std::string_view class_
 	/* Set Process ID Owner */
 	WP.PIDOwner = RunningProcesses.at(0);
 
-	printf("Waiting For Windows To Initiate...");
+	printf("Waiting For Windows To Initiate... \n");
 
 	Sleep(1000);
 
