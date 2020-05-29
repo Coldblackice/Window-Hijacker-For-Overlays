@@ -1,5 +1,7 @@
 #include "Hijacker.hpp"
-
+#include <TlHelp32.h>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 
 Hijacker::Hijacker::Hijacker()
 {
@@ -27,6 +29,7 @@ unsigned int Hijacker::Hijacker::GetProcessID(std::string_view process_name)
 	} while (Process32Next(HandleToProcessID, &pEntry));
 	return 0;
 }
+
 std::vector<unsigned int> Hijacker::Hijacker::GetProcessIDList(std::string_view process_name)
 {
 	std::vector<unsigned int> ProcessList;
@@ -93,7 +96,7 @@ HWND Hijacker::Hijacker::Hijack(std::string_view target, std::string_view class_
 	/* Loop Running Target Processes */
 	for (auto& Process : RunningProcesses)
 	{
-		/* Get Handle To The Process Then Termiate It*/
+		/* Get Handle To The Process Then Terminate It*/
 		HANDLE OldProcessHandle = OpenProcess(PROCESS_TERMINATE, FALSE, Process);
 		TerminateProcess(OldProcessHandle, NULL);
 		CloseHandle(OldProcessHandle);
@@ -106,6 +109,7 @@ HWND Hijacker::Hijacker::Hijack(std::string_view target, std::string_view class_
 	size_t suffix = target.find_last_of(".");
 	std::string_view rawname = target.substr(0, suffix);
 	std::string final = std::string("start ") + rawname.data();
+	OverlayString = final;
 	printf("System Call -> {%s} \n", final.c_str());
 
 	/* Opens Target's Process Without Being A Child Process*/
@@ -126,16 +130,39 @@ HWND Hijacker::Hijacker::Hijack(std::string_view target, std::string_view class_
 
 	printf("Waiting For Windows To Initiate...");
 
-	Sleep(5000);
+	Sleep(1000);
 
+	/* Stored As An std::vector As We May Need Yo Get Mutliple Windows.*/
 	RunningWindows = this->GrabOverlayHWND();
-	HWND FinalHWND = RunningWindows.at(0);
 
-	/* Set Window To Be Usable As An Overlay */
+	HWND FinalHWND = RunningWindows.at(0);
+	RECT ChildWindowRECT;
+
+	/* This Causes Not Detection Vectrors And Is A Safe Way To Get A HWND Easily */
+	GetWindowRect(FindWindowA(0, "Untitled - Paint"), &ChildWindowRECT);
+
+	ChildWindowRECT.top += 30;
+
+	this->ChildWindowSizeX = ChildWindowRECT.right - ChildWindowRECT.left;
+	this->ChildWindowSizeY = ChildWindowRECT.bottom - ChildWindowRECT.top;
+
+	/* Setting The Window Transparent And The Window To Be Clicked Though */
+
 	SetMenu(FinalHWND, NULL);
-	SetWindowLongPtr(FinalHWND, GWL_STYLE, WS_VISIBLE);
-	SetWindowLongPtr(FinalHWND, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TRANSPARENT);
-	SetWindowPos(FinalHWND, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
+
+	/* --- I Set This In The Overlay As It Was Causing Issuse With HwndRenderTargetProperties() ---*/
+
+	//SetWindowLongPtr(FinalHWND, GWL_STYLE, WS_VISIBLE);
+	//SetWindowLongPtr(FinalHWND, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TRANSPARENT);
+
+	/* --- I Set This In The Overlay As It Was Causing Issuse With HwndRenderTargetProperties() ---*/
+
+	SetWindowPos(FinalHWND, HWND_TOPMOST, ChildWindowRECT.left, ChildWindowRECT.top, ChildWindowSizeX, ChildWindowSizeY, 0);
+
+	SetLayeredWindowAttributes(FinalHWND, RGB(0, 0, 0), 0, LWA_COLORKEY | LWA_ALPHA);
+
+	MARGINS Margins = { -1 };
+	DwmExtendFrameIntoClientArea(FinalHWND, &Margins);
 
 	return FinalHWND;
 }

@@ -24,6 +24,10 @@ namespace Hijacker
 		std::string_view ProcessClassName;
 		std::string_view ProcessWindowName;
 	public:
+		std::string_view OverlayString = "";
+		unsigned int ChildWindowSizeX;
+		unsigned int ChildWindowSizeY;
+
 		Hijacker();
 		WindowProperties WP;
 		unsigned int GetProcessID(std::string_view process_name);
